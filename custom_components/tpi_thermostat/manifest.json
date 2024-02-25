@@ -1,0 +1,9 @@
+{
+	"domain": "tpi_thermostat",
+	"name": "tpi_thermostat for ebus/ot",
+	"documentation": "",
+	"version": "1.0.0",
+	"requirements": [],
+	"dependencies": [],
+	"codeowners": ["@sunfang1cn"]
+}
