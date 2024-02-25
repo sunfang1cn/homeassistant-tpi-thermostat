@@ -1,7 +1,7 @@
 {
-	"name": "Zhi Saswell Climate",
+	"name": "TPI SMART Frequency Conversion THERMOSTAT",
 	"domains": ["climate"],
 	"render_readme": true,
-	"iot_class": "Cloud Polling"
+	"iot_class": "Local Polling"
   }
   
