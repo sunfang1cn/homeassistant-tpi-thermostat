@@ -689,7 +689,7 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
         self.set_onoff_time2 = time.time()
 
     async def _async_heater_set_water_temperature(self, temp, force=False) -> None:
-        if self.set_water_temp_time is not None and time.time() - self.set_water_temp_time < 300 and not force:
+        if self.set_water_temp_time is not None and time.time() - self.set_water_temp_time < 180 and not force:
             _LOGGER.info('althrough set water temperature, but to short time since last operation, dismiss it')
             return
         
@@ -762,8 +762,8 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
             
 
             # restore from deadhand
-            restore_from_hot = self._target_temp >= self._cur_temp + self._cold_tolerance
-            restore_from_cold = self._cur_temp >= self._target_temp + self._hot_tolerance 
+            restore_from_hot = self._target_temp >= self._cur_temp 
+            restore_from_cold = self._cur_temp >= self._target_temp 
             if self.tpi_active == False and self.last_deadhand_reason == 'too_hot' and restore_from_hot:
                 self.tpi_active = True
                 self.last_deadhand_reason = None
@@ -891,7 +891,11 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
                     if self.tpi_start == 1:
                         self.out_new = 0.5 + self.tpi_kp * self.error_new
                     else:
-                        self.out_new = self.tpi_out_old + self.tpi_kp*(self.error_new - self.tpi_error_old) + (self.tpi_kp*(self.max_heater_temp-10)*self.error_new)/self.tpi_ti
+                        if self.tpi_out_old > 2.0:
+                            self.tpi_out_old = 2.0
+                        if self.tpi_out_old < -1:
+                            self.tpi_out_old = -1
+                        self.out_new = self.tpi_out_old + self.tpi_kp*(self.error_new - self.tpi_error_old) + (self.tpi_kp * 60 * self.error_new)/self.tpi_ti
                     _LOGGER.info("tpi cycle output: out_new %s, out_old %s, error_new %s, error_old %s, tpi_start %s, tpi_kp: %s, tpi_ti: %s", self.out_new, self.tpi_out_old, self.error_new, self.tpi_error_old, self.tpi_start, self.tpi_kp, self.tpi_ti)
                     self.tpi_start = 0
                     self.tpi_error_old =self.error_new
