@@ -2,7 +2,7 @@
 	"domain": "tpi_thermostat",
 	"name": "tpi_thermostat for ebus/ot",
 	"documentation": "https://github.com/sunfang1cn/homeassistant-tpi-thermostat/tree/main",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"requirements": [],
 	"dependencies": [],
 	"codeowners": ["@sunfang1cn"]

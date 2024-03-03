@@ -7,6 +7,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.components.mqtt.mixins import  MqttEntity, MQTT_ENTITY_COMMON_SCHEMA
 from homeassistant.components.mqtt.const import     CONF_COMMAND_TEMPLATE
 from homeassistant.components.mqtt.config import MQTT_RW_SCHEMA
+from homeassistant.components.input_text import SERVICE_SET_VALUE, ATTR_VALUE
 import voluptuous as vol
 
 import asyncio
@@ -146,6 +147,7 @@ SLOPE_TABLE_START_SLOPE = 10.0
 SLOPE_TABLE_MAX_SLOPE = 70.0
 SLOPE_TABLE_STEP_KP = 0.01333
 SLOPE_TABLE_STEP_TI = 10.0
+CONF_TEMP_INPUT_ID = 'tempurature_input_entity'
 
 CONF_PRESETS = {
     p: f"{p}_temp"
@@ -162,9 +164,11 @@ CONF_PRESETS = {
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HEATER_SWITCH): cv.entity_id,
-        vol.Required(CONF_HEATER_SET_TEMP_MQTT_TOPIC): cv.string,
-        vol.Required(CONF_HEATER_SET_TEMP_MQTT_PAYLOAD): cv.string,
         vol.Required(CONF_SENSOR): cv.entity_id,
+
+        vol.Optional(CONF_HEATER_SET_TEMP_MQTT_TOPIC, default="not_set"): cv.string,
+        vol.Optional(CONF_HEATER_SET_TEMP_MQTT_PAYLOAD, default="not_set"): cv.string,
+        vol.Optional(CONF_TEMP_INPUT_ID, default="not_set"): cv.string,
 
         vol.Optional(CONF_AC_MODE, default=False): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
@@ -204,10 +208,15 @@ async def async_setup_platform(hass: HomeAssistant,
 
     name: str = config[CONF_NAME]
     heater_switch_entity_id: str = config[CONF_HEATER_SWITCH]
-    heater_temp_topic: str = config[CONF_HEATER_SET_TEMP_MQTT_TOPIC]
-    heater_temp_payload: str = config[CONF_HEATER_SET_TEMP_MQTT_PAYLOAD]
+    heater_temp_topic: str | None = config[CONF_HEATER_SET_TEMP_MQTT_TOPIC]
+    heater_temp_payload: str | None = config[CONF_HEATER_SET_TEMP_MQTT_PAYLOAD]
+    heater_temp_input_entity_id: str | None = config.get(CONF_TEMP_INPUT_ID)
     sensor_entity_id: str = config[CONF_SENSOR]
     
+    if ( heater_temp_topic == 'not_set' or heater_temp_payload == 'not_set' ) and heater_temp_input_entity_id == 'not_set':
+        _LOGGER.error("One of heater_temp_topic or heater_temp_input_entity_id must be set!")
+        return
+
     deadhand: float | None = config.get(CONF_DEADHAND)
     auto_tpi: bool | None = config.get(CONF_AUTO_TPI)
     tpi_kp: float | None = config.get(CONF_TPI_KP)
@@ -261,7 +270,8 @@ async def async_setup_platform(hass: HomeAssistant,
                 unique_id,
                 min_heater_temp,
                 max_heater_temp,
-                hass, config, async_add_entities, discovery_info
+                hass, config, async_add_entities, discovery_info,
+                heater_temp_input_entity_id
             )
         ]
     )
@@ -299,7 +309,8 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
                 unique_id,
                 min_heater_temp,
                 max_heater_temp,
-                hass, conf, async_add_entities, discovery_info
+                hass, conf, async_add_entities, discovery_info,
+                heater_temp_input_entity_id
                 ):
         
 
@@ -351,6 +362,8 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
         self._temp_lock = asyncio.Lock()
         self._min_temp = min_temp
         self._max_temp = max_temp
+        self.cur_water_temp = 40
+        self.heater_temp_input_entity_id = heater_temp_input_entity_id
         self._attr_preset_mode = PRESET_NONE
         self._target_temp = target_temp
         self._attr_temperature_unit = unit
@@ -627,10 +640,30 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
     def tpi_output(self) -> float | None:
         """Return the tpi output."""
         return self.out_new
+    
     @property
     def tpi_state(self) -> float | None:
         """Return the tpi output."""
         return self.current_state
+    
+    @property
+    def extra_state_attributes(self):
+        """Return entity specific state attributes."""
+        _attributes = {
+            "tpi_state": self.current_state,
+            "tpi_active": self.tpi_active,
+            "deadhand": self.last_deadhand_reason,
+            "heater_activate": self._is_device_active,
+            "tpi_out_new": self.out_new,
+            "tpi_out_old": self.tpi_out_old,
+            "current_set_water_tempurature": self.cur_water_temp,
+            "tpi_error_new": self.error_new, 
+            "tpi_error_old": self.tpi_error_old,
+            "is_tpi_start": self.tpi_start,
+            "tpi_kp": self.tpi_kp, 
+            "tpi_ti": self.tpi_ti
+        }
+        return _attributes
     
     @property
     def hvac_mode(self) -> HVACMode | None:
@@ -699,13 +732,18 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
             temp = self.min_heater_temp
         if temp > self.max_heater_temp:
             temp = self.max_heater_temp
-        payload = self.heater_temp_payload + str(temp)
         self.set_water_temp_time = time.time()
-        _LOGGER.debug('set water temperature %s %s',self.heater_temp_topic, payload )
-
-        await self.async_publish(
-                self.heater_temp_topic,
-                payload
+        _LOGGER.debug('set water temperature %s %s',self.heater_temp_topic, str(temp) )
+        if self.heater_temp_topic == 'not_set':
+            payload = self.heater_temp_payload + str(temp)
+            await self.async_publish(
+                    self.heater_temp_topic,
+                    payload
+                )
+        else:
+            data = {ATTR_ENTITY_ID: self.heater_temp_input_entity_id, ATTR_VALUE: temp}
+            await self.hass.services.async_call(
+                HA_DOMAIN, SERVICE_SET_VALUE, data, context=self._context
             )
 
         
