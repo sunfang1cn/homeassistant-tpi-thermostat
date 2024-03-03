@@ -7,7 +7,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.components.mqtt.mixins import  MqttEntity, MQTT_ENTITY_COMMON_SCHEMA
 from homeassistant.components.mqtt.const import     CONF_COMMAND_TEMPLATE
 from homeassistant.components.mqtt.config import MQTT_RW_SCHEMA
-from homeassistant.components.input_text import SERVICE_SET_VALUE, ATTR_VALUE
+from homeassistant.components.input_text import SERVICE_SET_VALUE, ATTR_VALUE, DOMAIN as INPUT_TEXT_DOMAIN
 import voluptuous as vol
 
 import asyncio
@@ -734,7 +734,7 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
             temp = self.max_heater_temp
         self.set_water_temp_time = time.time()
         _LOGGER.debug('set water temperature %s %s',self.heater_temp_topic, str(temp) )
-        if self.heater_temp_topic == 'not_set':
+        if self.heater_temp_topic != 'not_set':
             payload = self.heater_temp_payload + str(temp)
             await self.async_publish(
                     self.heater_temp_topic,
@@ -743,7 +743,7 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
         else:
             data = {ATTR_ENTITY_ID: self.heater_temp_input_entity_id, ATTR_VALUE: temp}
             await self.hass.services.async_call(
-                HA_DOMAIN, SERVICE_SET_VALUE, data, context=self._context
+                INPUT_TEXT_DOMAIN, SERVICE_SET_VALUE, data, context=self._context
             )
 
         
