@@ -4,7 +4,8 @@ from homeassistant.components.climate import ClimateEntity, PLATFORM_SCHEMA
 from homeassistant.const import  ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.components.climate.const import   ClimateEntityFeature, HVACMode, HVACAction
 import homeassistant.helpers.config_validation as cv
-from homeassistant.components.mqtt.mixins import  MqttEntity, MQTT_ENTITY_COMMON_SCHEMA
+from homeassistant.components.mqtt.mixins import  MqttEntity
+from homeassistant.components.mqtt.schemas import MQTT_ENTITY_COMMON_SCHEMA
 from homeassistant.components.mqtt.const import     CONF_COMMAND_TEMPLATE
 from homeassistant.components.mqtt.config import MQTT_RW_SCHEMA
 from homeassistant.components.input_text import SERVICE_SET_VALUE, ATTR_VALUE, DOMAIN as INPUT_TEXT_DOMAIN
@@ -383,6 +384,11 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added."""
+        try:
+            mqtt_data = self.hass.data["mqtt"]
+        except KeyError:
+            _LOGGER.error("The MQTT integration is not available. Please ensure 'mqtt:' is configured in your Home Assistant configuration.")
+            return
         await ClimateEntity.async_added_to_hass(self)
         _LOGGER.debug("async_added_to_hass called in tpi_thermstat")
         # Add listener
@@ -950,7 +956,3 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
                     _LOGGER.info("setting temp from tpi, %s" , self.cur_water_temp)
                     
                     await self._async_heater_set_water_temperature(self.cur_water_temp)
-
-                        
-
-
