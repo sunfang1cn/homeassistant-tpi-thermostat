@@ -4,7 +4,7 @@ from homeassistant.components.climate import ClimateEntity, PLATFORM_SCHEMA
 from homeassistant.const import  ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.components.climate.const import   ClimateEntityFeature, HVACMode, HVACAction
 import homeassistant.helpers.config_validation as cv
-from homeassistant.components.mqtt.mixins import  MqttEntity
+from homeassistant.components.mqtt.entity import  MqttEntity
 from homeassistant.components.mqtt.schemas import MQTT_ENTITY_COMMON_SCHEMA
 from homeassistant.components.mqtt.const import     CONF_COMMAND_TEMPLATE
 from homeassistant.components.mqtt.config import MQTT_RW_SCHEMA
