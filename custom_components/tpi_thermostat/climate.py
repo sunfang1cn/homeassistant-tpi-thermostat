@@ -73,7 +73,6 @@ from homeassistant.const import Platform
 
 MQTT_CLIMATE_ATTRIBUTES_BLOCKED = frozenset(
     {
-        climate.ATTR_AUX_HEAT,
         climate.ATTR_CURRENT_HUMIDITY,
         climate.ATTR_CURRENT_TEMPERATURE,
         climate.ATTR_FAN_MODE,
@@ -568,8 +567,8 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
             self.tpi_start = 1
             self.tpi_active = False
             self.last_deadhand_reason = None
-            if self._is_device_active:
-                await self._async_heater_turn_off(force=True)
+            #if self._is_device_active:
+            await self._async_heater_turn_off(force=True)
         else:
             _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
             return
@@ -791,8 +790,8 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
                 _LOGGER.info("Reach High DeadHand, Turning off heater %s", self.heater_switch_entity_id)
                 self.tpi_active = False
                 self.last_deadhand_reason = 'too_hot'
-                if self._is_device_active:
-                    await self._async_heater_turn_off(force=True)
+                #if self._is_device_active:
+                await self._async_heater_turn_off(force=True)
 
             elif too_cold:
                 _LOGGER.info("Reach Low DeadHand, Turning on heater %s", self.heater_switch_entity_id)
@@ -929,8 +928,8 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
                         return
                 ## real tpi cycle
                 if self.current_state == 4:
-                    if not self._is_device_active:
-                        await self._async_heater_turn_on()
+                    #if not self._is_device_active:
+                    await self._async_heater_turn_on()
                     self.error_new = (self._target_temp - self._cur_temp) / (self._hot_tolerance+self._cold_tolerance)
                     if self.tpi_start == 1:
                         self.out_new = 0.5 + self.tpi_kp * self.error_new
