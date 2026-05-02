@@ -4,7 +4,7 @@ from homeassistant.components.climate import ClimateEntity, PLATFORM_SCHEMA
 from homeassistant.const import  ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.components.climate.const import   ClimateEntityFeature, HVACMode, HVACAction
 import homeassistant.helpers.config_validation as cv
-from homeassistant.components.mqtt.entity import  MqttEntity
+from homeassistant.components import mqtt
 from homeassistant.components.mqtt.schemas import MQTT_ENTITY_COMMON_SCHEMA
 from homeassistant.components.mqtt.const import     CONF_COMMAND_TEMPLATE
 from homeassistant.components.mqtt.config import MQTT_RW_SCHEMA
@@ -68,7 +68,7 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType, EventType
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.const import Platform
 
 MQTT_CLIMATE_ATTRIBUTES_BLOCKED = frozenset(
@@ -277,7 +277,7 @@ async def async_setup_platform(hass: HomeAssistant,
     )
 
 
-class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
+class TpiThermostat(ClimateEntity, RestoreEntity):
     _attr_should_poll = False
     _enable_turn_on_off_backwards_compatibility = False
     _entity_id_format = climate.ENTITY_ID_FORMAT
@@ -315,8 +315,6 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
         
 
         
-        MqttEntity.__init__(self, hass, conf, async_add_entities, discovery_info)
-
         self.current_state = 0
         self.tpi_error_old = 0
         self.tpi_out_old = 0
@@ -576,7 +574,7 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
         self.async_write_ha_state()
 
     async def _async_sensor_changed(
-        self, event: EventType[EventStateChangedData]
+        self, event: Event[EventStateChangedData]
     ) -> None:
         """Handle temperature changes."""
         new_state = event.data["new_state"]
@@ -600,7 +598,7 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
             await self._async_heater_turn_off()
 
     @callback
-    def _async_switch_changed(self, event: EventType[EventStateChangedData]) -> None:
+    def _async_switch_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle heater switch state changes."""
         new_state = event.data["new_state"]
         old_state = event.data["old_state"]
@@ -741,7 +739,8 @@ class TpiThermostat(ClimateEntity, RestoreEntity, MqttEntity):
         _LOGGER.debug('set water temperature %s %s',self.heater_temp_topic, str(temp) )
         if self.heater_temp_topic != 'not_set':
             payload = self.heater_temp_payload + str(temp)
-            await self.async_publish(
+            await mqtt.async_publish(
+                    self.hass,
                     self.heater_temp_topic,
                     payload
                 )
